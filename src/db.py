@@ -6,7 +6,7 @@ import json
 import logging
 from typing import List, Optional, Tuple, Set
 from dataclasses import dataclass, asdict
-from fuzzywuzzy import process
+from fuzzywuzzy import process, fuzz
 import config
 
 logger = logging.getLogger(__name__)
@@ -110,6 +110,10 @@ class CardDatabase:
     def add_card(self, card: Card):
         self.cards.append(card)
         searchable_text = f"{card.name} {card.description} {card.card_type} {card.attribute}"
+        if card.atk:
+            searchable_text += f"ATK: {card.atk}"
+        if card.defense:
+            searchable_text += f"DEF: {card.defense}"
         self.search_corpus[searchable_text] = card
 
     def find_best_match(self, query: str) -> Optional[Tuple[Card, int, str]]:
@@ -118,7 +122,7 @@ class CardDatabase:
             return None
         
         choices = list(self.search_corpus.keys())
-        best_match = process.extractOne(query, choices)
+        best_match = process.extractOne(query, choices, scorer=fuzz.token_set_ratio)
         
         if best_match and best_match[1] >= config.FUZZY_SCORE_CUTOFF_SINGLE:
             matched_string, similarity_score = best_match
@@ -128,20 +132,47 @@ class CardDatabase:
         return None
 
     def find_multiple_matches(self, query: str) -> List[Tuple[Card, int, str]]:
-        """Modified to return the original query for highlighting"""
         if not self.cards:
             return []
         
-        choices = list(self.search_corpus.keys())
-        matches = process.extract(query, choices, limit=config.MULTI_SEARCH_LIMIT)
+        required_keywords = []
+        clean_query = query
+
+        found_hash_matches = re.findall(r'#([^#]+)#', query, re.IGNORECASE)
+        for match in found_hash_matches:
+            required_keywords.append(match.strip().lower())
+            clean_query = clean_query.replace(f"#{match}#", "", 1).strip() # Use count=1 to replace only first occurrence
         
-        results = []
+        logger.info(required_keywords)
+
+        clean_query = re.sub(r'\s+', ' ', clean_query).strip()
+        
+        choices = list(self.search_corpus.keys())
+        matches = process.extract(clean_query, choices, limit=config.MULTI_SEARCH_LIMIT, scorer=fuzz.token_set_ratio)
+        
+        filtered_results = []
         for matched_string, similarity_score in matches:
             if similarity_score >= config.FUZZY_SCORE_CUTOFF_MULTI:
                 matched_card = self.search_corpus[matched_string]
-                results.append((matched_card, similarity_score, query))
-        
-        return results
+                
+                card_text_for_check = f"{matched_card.name} {matched_card.description} {matched_card.card_type} {matched_card.attribute}".lower()
+
+                if matched_card.atk:
+                    card_text_for_check += f"ATK: {matched_card.atk}"
+                if matched_card.defense:
+                    card_text_for_check += f"DEF: {matched_card.defense}"
+                
+                all_required_found = True
+                if len(required_keywords) > 0:
+                    for req_kw in required_keywords:
+                        if req_kw not in card_text_for_check:
+                            all_required_found = False
+                            break
+                
+                if all_required_found:
+                    filtered_results.append((matched_card, similarity_score, query))
+
+        return filtered_results
 
     def save_cache(self):
         try:

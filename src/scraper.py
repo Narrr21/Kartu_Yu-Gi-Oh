@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from PyQt5.QtCore import QThread, pyqtSignal
 import re
+import time
 
 # Import our own modules
 from db import Card, CardDatabase
@@ -42,7 +43,7 @@ def scrape_pack_urls(base_url: str, output_filename: str):
 class ScraperThread(QThread):
     progress = pyqtSignal(int)
     status_update = pyqtSignal(str)
-    finished = pyqtSignal(object)
+    finished = pyqtSignal(object, float)
     error_occurred = pyqtSignal(str)
 
     def __init__(self):
@@ -52,11 +53,13 @@ class ScraperThread(QThread):
         self.session.headers.update({'User-Agent': config.USER_AGENT})
 
     def run(self):
+        start_time = time.time()
         try:
             if self.db.load_cache():
+                elapsed_time = time.time() - start_time
                 self.status_update.emit("Loaded cards from cache!")
                 self.progress.emit(100)
-                self.finished.emit(self.db)
+                self.finished.emit(self.db, elapsed_time)
                 return
 
             self.status_update.emit("Loading pack URLs...")
@@ -79,13 +82,14 @@ class ScraperThread(QThread):
                 self.msleep(100)
             
             self.db.save_cache()
+            elapsed_time = time.time() - start_time
             self.status_update.emit(f"Scraping complete! Found {cards_scraped} cards from {total_packs} packs.")
-            self.finished.emit(self.db)
+            self.finished.emit(self.db, elapsed_time)
             
         except Exception as e:
             logger.error(f"Scraping failed: {e}")
             self.error_occurred.emit(str(e))
-            self.finished.emit(None)
+            self.finished.emit(None, 0.0)
             
     def scrape_cards_from_url(self, url: str) -> int:
         cards_found = 0
@@ -123,33 +127,19 @@ class ScraperThread(QThread):
         return cards_found
 
     def extract_card_info(self, card_div) -> Optional[Card]:
-        # Extract card name with multiple fallback selectors
         name = self.extract_card_name(card_div)
         if not name:
             return None
-            
-        # Extract attribute with icon detection
         attribute = self.extract_attribute(card_div)
-        
-        # Extract level/rank with better parsing
         level = self.extract_level_rank(card_div)
-        
-        # Extract card type/species with better parsing
         card_type = self.extract_card_type(card_div)
-        
-        # Extract ATK/DEF with better number parsing
         atk, defense = self.extract_atk_def(card_div)
-        
-        # Extract description with HTML cleaning
-        description = self.extract_description(card_div)
-        
-        # Extract rarity with multiple selectors
+        description = self.extract_description(card_div)        
         rarity = self.extract_rarity(card_div)
         
         return Card(name, attribute, level, card_type, atk, defense, description, rarity)
 
     def extract_card_name(self, card_div):
-        """Extract card name with multiple selectors"""
         selectors = [
             'span.card_name',
             '.card_name_flex_1',

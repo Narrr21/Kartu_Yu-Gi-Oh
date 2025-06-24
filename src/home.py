@@ -6,12 +6,15 @@ from PyQt5.QtWidgets import (QMainWindow, QMessageBox, QVBoxLayout, QHBoxLayout,
                              QLineEdit, QPushButton, QTextBrowser, QProgressBar, QStatusBar, QAction)
 from PyQt5.QtCore import QTimer, Qt
 from PyQt5.QtGui import QFont
+import logging
 
 import config
 from db import CardDatabase
 from scraper import ScraperThread, scrape_pack_urls
 from search import SearchThread 
 from toast import ToastOverlay
+
+logger = logging.getLogger(__name__)
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -109,7 +112,7 @@ class MainWindow(QMainWindow):
     def update_status(self, message: str):
         self.status_bar.showMessage(message)
 
-    def on_scraping_finished(self, db_instance: Optional[CardDatabase]):
+    def on_scraping_finished(self, db_instance: Optional[CardDatabase], elapsed_time: float):
         self.db = db_instance
         if self.db and self.db.cards:
             self.search_button.setEnabled(True)
@@ -128,6 +131,7 @@ class MainWindow(QMainWindow):
                     </p>
                 </div>
             """)
+            logger.info(f"Scraping and database initialization took {elapsed_time:.2f} seconds.")
         else:
             self.show_toas("Scraping Failed", "Could not scrape any cards. Please check your internet connection.", "error")
 
@@ -157,7 +161,7 @@ class MainWindow(QMainWindow):
         self.search_thread.search_finished.connect(self.on_search_finished)
         self.search_thread.start()
 
-    def on_search_finished(self, results):
+    def on_search_finished(self, results, elapsed_time: float):
         query = self.search_line_edit.text().strip()
         self.search_button.setEnabled(True)
         self.multi_search_button.setEnabled(True)
@@ -167,6 +171,7 @@ class MainWindow(QMainWindow):
             self._display_multi_results(results, query)
         else:
             self._display_single_result(results, query)
+        logger.info(f"Search for '{query}' took {elapsed_time:.4f} seconds.")
 
     def _display_single_result(self, match, query):
         if match:
