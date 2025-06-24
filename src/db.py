@@ -1,5 +1,3 @@
-# database.py
-
 import os
 import re
 import json
@@ -23,10 +21,6 @@ class Card:
     rarity: str
 
     def to_html(self, query: str = None) -> str:
-        """
-        Convert card to HTML with optional highlighting of fuzzy matched terms
-        """
-        # Create copies of the fields for highlighting
         name = self.name
         attribute = self.attribute
         level = self.level
@@ -36,7 +30,6 @@ class Card:
         description = self.description
         rarity = self.rarity
         
-        # If query is provided, highlight matching terms
         if query:
             highlight_terms = self._extract_highlight_terms(query)
             name = self._highlight_text(name, highlight_terms)
@@ -69,23 +62,16 @@ class Card:
         """
     
     def _extract_highlight_terms(self, query: str) -> Set[str]:
-        """
-        Extract individual terms from the query for highlighting
-        """
-        # Split query into words and clean them
         terms = set()
         words = re.findall(r'\b\w+\b', query.lower())
         
         for word in words:
-            if len(word) >= 2:  # Only highlight words with 2+ characters
+            if len(word) >= 2:
                 terms.add(word)
         
         return terms
     
     def _highlight_text(self, text: str, terms: Set[str]) -> str:
-        """
-        Highlight matching terms in text with case-insensitive matching
-        """
         if not terms or not text:
             return text
             
@@ -117,7 +103,6 @@ class CardDatabase:
         self.search_corpus[searchable_text] = card
 
     def find_best_match(self, query: str) -> Optional[Tuple[Card, int, str]]:
-        """Modified to return the original query for highlighting"""
         if not self.cards:
             return None
         

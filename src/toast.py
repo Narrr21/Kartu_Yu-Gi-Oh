@@ -64,7 +64,6 @@ class Toast(QFrame):
         self.fade_in()
 
     def setup_styling(self):
-        """Setup modern styling based on toast type"""
         colors = {
             "info": {"bg": "rgba(59, 130, 246, 0.95)", "border": "#3B82F6"},
             "success": {"bg": "rgba(34, 197, 94, 0.95)", "border": "#22C55E"},
@@ -143,11 +142,9 @@ class Toast(QFrame):
     def fade_in(self):
         self.fade_in_group.stop()
         
-        # Opacity animation
         self.opacity_animation.setStartValue(0.0)
         self.opacity_animation.setEndValue(1.0)
         
-        # Scale animation (bouncy entrance)
         self.scale_animation.setStartValue(0.8)
         self.scale_animation.setEndValue(1.0)
         
@@ -214,15 +211,12 @@ if __name__ == "__main__":
         }
     """)
     
-    # Layout
     main_layout = QVBoxLayout(window)
     main_layout.setAlignment(Qt.AlignCenter)
     main_layout.setSpacing(20)
 
-    # Toast overlay
     toast_overlay = ToastOverlay(window)
 
-    # Buttons for different toast types
     buttons_data = [
         ("Show Info Toast", "info", "Here's some helpful information!"),
         ("Show Success Toast", "success", "Operation completed successfully!"),
@@ -237,7 +231,6 @@ if __name__ == "__main__":
                              toast_overlay.add_toast(m, 4000, t))
         main_layout.addWidget(button)
     
-    # Multiple toasts button
     multi_button = QPushButton("Show Multiple Toasts", window)
     multi_button.setFixedSize(250, 50)
     

@@ -1,5 +1,3 @@
-# main_window.py
-
 import os
 from typing import Optional
 from PyQt5.QtWidgets import (QMainWindow, QMessageBox, QVBoxLayout, QHBoxLayout, QWidget, QLabel, 
